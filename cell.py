@@ -59,13 +59,14 @@ class Cell:
     
 		# check if cell should grow
 		if (self.energy == 5):
-			self.addPart(self.posX, self.posY)
+			# add part
 			self.energy = 10
   
 		# check if cell should move
 		if (self.isSingleCell()): # it can move if its a single cell
-			self.posX += random.randint(-2, 2)
-			self.posY += random.randint(-1, 1)
+			posX = self.getParts()[0].getPos()[0]
+			posY = self.getParts()[0].getPos()[1]
+			self.getParts()[0].setPos(posX + random.randint(-2, 2), posY + random.randint(-1, 1))
 		
 		# check if cell is should be dead
 		if (len(self.parts) == 0):
