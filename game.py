@@ -33,8 +33,9 @@ class Game:
     self.blockSize = 16
     self.world = World(self.screen_width/self.blockSize, self.screen_height/self.blockSize)
     for i in range(random.randint(5, 15)):
-      self.world.addCell(Cell(random.randint(5, self.screen_width/self.blockSize-5),random.randint(5, self.screen_height/self.blockSize-5), "C"))
-
+      newCell = Cell(random.randint(5, self.screen_width/self.blockSize-5),random.randint(5, self.screen_height/self.blockSize-5), "C", self.world)
+      self.world.addCell(newCell)
+      self.world.addPart(newCell.parts[0])
   def run(self):
     running = True
     while running:
