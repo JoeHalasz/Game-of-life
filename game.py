@@ -22,6 +22,8 @@ class Game:
     pygame.display.set_caption("Game of Life")
     # make the screen fullscreen
     self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+    # make the screen 800x600
+    #self.screen = pygame.display.set_mode((800, 600))
     
     # get the screen dimentions
     self.screen_width = self.screen.get_width()
@@ -29,13 +31,9 @@ class Game:
 
     self.clock = pygame.time.Clock()
 
-    # create world
-    self.blockSize = 16
-    self.world = World(self.screen_width/self.blockSize, self.screen_height/self.blockSize)
-    for i in range(random.randint(5, 15)):
-      newCell = Cell(random.randint(5, self.screen_width/self.blockSize-5),random.randint(5, self.screen_height/self.blockSize-5), "C", self.world)
-      self.world.addCell(newCell)
-      self.world.addPart(newCell.parts[0])
+    self.setupWorld()
+
+
   def run(self):
     running = True
     while running:
@@ -46,11 +44,22 @@ class Game:
 
       self.drawBackground()
       self.drawAllCells()
+      if (len(self.world.cells) == 0):
+        self.setupWorld()
       
       events()
 
       pygame.display.update()
 
+
+  def setupWorld(self):
+    # create world
+    self.blockSize = 16
+    self.world = World(self.screen_width/self.blockSize, self.screen_height/self.blockSize)
+    for i in range(random.randint(5, 15)):
+      newCell = Cell(random.randint(5, self.screen_width/self.blockSize-5),random.randint(5, self.screen_height/self.blockSize-5), "C", self.world)
+      self.world.addCell(newCell)
+      self.world.addPart(newCell.parts[0])
 
   def turn(world):
     for cell in world.cells:
@@ -58,8 +67,13 @@ class Game:
 
 
   def drawAllCells(self):
+    totalParts = 0
     for cell in self.world.cells:
       self.drawCell(cell)
+      totalParts += len(cell.parts)
+    print("Cells:", len(self.world.cells),"/", (self.world.width * self.world.height), str(round((len(self.world.cells)/(self.world.width * self.world.height))*100, 1)) + "%")
+    if len(self.world.cells) != 0:
+      print("Cell parts:", totalParts, "Average of", totalParts/len(self.world.cells), "parts per cell")
 
 
   def drawCell(self, cell):

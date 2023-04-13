@@ -15,17 +15,32 @@ class World:
     def addCell(self, cell):
         self.cells.append(cell)
 
+    def removeCell(self, cell):
+        for cellPart in cell.parts:
+            cell.world.parts[cellPart.posX][cellPart.posY] = None
+        if cell in self.cells:
+            self.cells.remove(cell)
+
     def addPart(self, part):
-        foundOne = False
+        oldPart = None
+        if (part.posX < 0 or part.posX >= self.width or part.posY < 0 or part.posY >= self.height):
+            return None
         if (self.parts[part.posX][part.posY]) != None:
-            foundOne = True
+            oldPart = self.parts[part.posX][part.posY]
 
         self.parts[part.posX][part.posY] = part
-        return foundOne
+        return oldPart
     
     # ONLY CHECK THIS IF WE ARE TRYING TO ADD SOMETHING TO THE TILE
-    def hasAlivePartAtPos(self, posX, posY):
+    def getAlivePartAtPos(self, posX, posY):
         # give the eater part energy if this is checked
-        if (self.parts[posX][posY] != None and self.parts[posX][posY].alive and self.parts[posX][posY].cellPartType == "A"):
+        if (self.parts[posX][posY] != None and self.parts[posX][posY].alive and self.parts[posX][posY].partType == "A"):
             self.parts[posX][posY].parent.energy += 5
-        return self.parts[posX][posY] != None and self.parts[posX][posY].alive
+        if self.parts[posX][posY] != None and self.parts[posX][posY].alive:
+            return self.parts[posX][posY]
+        return None
+
+    def getPartAtPos(self, posX, posY):
+        if (posX < 0 or posX >= self.width or posY < 0 or posY >= self.height):
+            return None
+        return self.parts[posX][posY]
