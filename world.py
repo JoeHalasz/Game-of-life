@@ -27,15 +27,13 @@ class World:
             return None
         if (self.parts[part.posX][part.posY]) != None:
             oldPart = self.parts[part.posX][part.posY]
+            oldPart.kill()
 
         self.parts[part.posX][part.posY] = part
         return oldPart
     
     # ONLY CHECK THIS IF WE ARE TRYING TO ADD SOMETHING TO THE TILE
     def getAlivePartAtPos(self, posX, posY):
-        # give the eater part energy if this is checked
-        if (self.parts[posX][posY] != None and self.parts[posX][posY].alive and self.parts[posX][posY].partType == "A"):
-            self.parts[posX][posY].parent.energy += 5
         if self.parts[posX][posY] != None and self.parts[posX][posY].alive:
             return self.parts[posX][posY]
         return None

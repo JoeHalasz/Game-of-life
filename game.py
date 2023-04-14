@@ -28,6 +28,7 @@ class Game:
     # get the screen dimentions
     self.screen_width = self.screen.get_width()
     self.screen_height = self.screen.get_height()
+    print("Screen width:", self.screen_width, "Screen height:", self.screen_height)
 
     self.clock = pygame.time.Clock()
 
@@ -54,12 +55,11 @@ class Game:
 
   def setupWorld(self):
     # create world
-    self.blockSize = 16
+    self.blockSize = 10
     self.world = World(self.screen_width/self.blockSize, self.screen_height/self.blockSize)
     for i in range(random.randint(5, 15)):
       newCell = Cell(random.randint(5, self.screen_width/self.blockSize-5),random.randint(5, self.screen_height/self.blockSize-5), "C", self.world)
       self.world.addCell(newCell)
-      self.world.addPart(newCell.parts[0])
 
   def turn(world):
     for cell in world.cells:
@@ -68,12 +68,17 @@ class Game:
 
   def drawAllCells(self):
     totalParts = 0
+    totalEnergy = 0
     for cell in self.world.cells:
       self.drawCell(cell)
       totalParts += len(cell.parts)
-    print("Cells:", len(self.world.cells),"/", (self.world.width * self.world.height), str(round((len(self.world.cells)/(self.world.width * self.world.height))*100, 1)) + "%")
+      totalEnergy += cell.energy
+    print()
+    print("Cells:", len(self.world.cells))
     if len(self.world.cells) != 0:
       print("Cell parts:", totalParts, "Average of", totalParts/len(self.world.cells), "parts per cell")
+      print("Cell parts take up ", round(totalParts/(self.world.width*self.world.height)*100,2), "% of the", self.world.width*self.world.height, "blocks")
+      print("Average of", totalEnergy/len(self.world.cells), "energy per cell")
 
 
   def drawCell(self, cell):
@@ -89,7 +94,6 @@ class Game:
     # make the background light grey
     self.screen.fill((200, 200, 200))
     # draw a grid using screen width and height
-    self.blockSize = 16
     for x in range(self.blockSize, self.screen_width, self.blockSize):
       pygame.draw.line(self.screen, (0, 0, 0), (x, self.blockSize), (x, self.screen_height-self.blockSize))
       for y in range(self.blockSize, self.screen_height, self.blockSize):

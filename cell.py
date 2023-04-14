@@ -42,25 +42,31 @@ class CellPart:
     self.alive = False
     if (self in self.parent.parts):
       self.parent.parts.remove(self)
+    
+    self.parent.checkDead()
+    
     try: # this will fail for parts that are off the grid
-      self.parent.world.parts[self.posX][self.posY] = None
+      if (self.parent.world.parts[self.posX][self.posY] == self):
+        self.parent.world.parts[self.posX][self.posY] = None
     except:
       pass
-    self.parent.checkDead()
 
   def update(self):
     if (self.partType == "C"):
-      self.parent.energy += 3
+      self.parent.energy += 5
     elif (self.partType == "B"):
-      self.parent.energy -= 1
+      self.parent.energy -= .2
     elif (self.partType == "A"):
       self.parent.energy -= 2
-    
+      
+    try:
+      if (self.parent.world.parts[self.posX][self.posY] != self):
+        self.kill()
+    except:
+      self.kill()
+      
     self.numTurnsAlive += 1
     if (self.numTurnsAlive >= self.parent.genetics["cellPartLifeSpan"]):
-      self.kill()
-    # if its outside the playzone, kill it
-    if self.posX < 2 or self.posX > self.parent.world.width or self.posY < 2 and self.posY > self.parent.world.height:
       self.kill()
 
 class Cell:
@@ -82,11 +88,11 @@ class Cell:
     self.genetics = {}
     if (oldGenetics == None): # if this the first generation
       self.partsTypePlace = 0
-      self.genetics["PartEnergyRequired"] = random.randint(1, 10)
+      self.genetics["PartEnergyRequired"] = random.randint(5, 15)
       self.genetics["PartListMax"] = random.randint(5, 15)
       self.genetics["PartTypeList"] = []
       self.genetics["GrowthDirection"] = []
-      self.genetics["cellPartLifeSpan"] = random.randint(5, 30)
+      self.genetics["cellPartLifeSpan"] = random.randint(15, 45)
       self.genetics["MaxStoredEnergy"] = random.randint(30, 100)
 
       self.genetics["PartTypeList"].append("B")
@@ -109,12 +115,12 @@ class Cell:
             self.genetics["PartListMax"] = 1
           if key == "PartListMax":
             if (self.genetics[key] < oldGenetics[key]):
-              self.genetics["PartTypeList"] = self.genetics["PartTypeList"][0:self.genetics["PartListMax"]]
-              self.genetics["GrowthDirection"] = self.genetics["GrowthDirection"][0:self.genetics["PartListMax"]]
+              self.genetics["PartTypeList"] = self.genetics["PartTypeList"][:self.genetics["PartListMax"]]
+              self.genetics["GrowthDirection"] = self.genetics["GrowthDirection"][:self.genetics["PartListMax"]]
             else:
               self.genetics["PartTypeList"] = []
               self.genetics["GrowthDirection"] = []
-              for i in range(0, self.genetics["PartListMax"]):
+              for i in range(self.genetics["PartListMax"]):
                 if (i < len(oldGenetics["PartTypeList"])):
                   self.genetics["PartTypeList"].append(oldGenetics["PartTypeList"][i])
                 else:
@@ -124,7 +130,7 @@ class Cell:
                 else:
                   self.genetics["GrowthDirection"].append(random.choice(["U", "D", "L", "R"]))
 
-      for i in range(0, self.genetics["PartListMax"]):
+      for i in range(self.genetics["PartListMax"]):
         if (random.randint(0, 100) == 0):
           self.genetics["PartTypeList"][i] = random.choice(cellNameChoices)
       for i in range(0, self.genetics["PartListMax"]):
@@ -161,26 +167,31 @@ class Cell:
     posY = part.posY
     # check if a part can be added there
     if (force or (posX > 1 and posX < self.world.width and posY > 1 and posY < self.world.height)):
-      if force or (self.world.getAlivePartAtPos(posX, posY) == None or self.world.getAlivePartAtPos(posX, posY) == part or part.partType == "A"):
+      if force or (self.world.getAlivePartAtPos(posX, posY) == None or self.world.getAlivePartAtPos(posX, posY) == part):
         if (not force) and (part.partType == "C"):
           # if the any of the 4 squares around this are a C then return false
-          if ((self.world.getPartAtPos(posX+1, posY) != None and self.world.getPartAtPos(posX+1, posY) == "C") 
-            or (self.world.getPartAtPos(posX-1, posY) != None and self.world.getPartAtPos(posX-1, posY) == "C")
-            or (self.world.getPartAtPos(posX, posY+1) != None and self.world.getPartAtPos(posX, posY+1) == "C")
-            or (self.world.getPartAtPos(posX, posY-1) != None and self.world.getPartAtPos(posX, posY-1) == "C")):
-            return False
+          if ((self.world.getPartAtPos(posX+1, posY) != None and self.world.getPartAtPos(posX+1, posY).partType == "C") 
+            or (self.world.getPartAtPos(posX-1, posY) != None and self.world.getPartAtPos(posX-1, posY).partType == "C")
+            or (self.world.getPartAtPos(posX, posY+1) != None and self.world.getPartAtPos(posX, posY+1).partType == "C")
+            or (self.world.getPartAtPos(posX, posY-1) != None and self.world.getPartAtPos(posX, posY-1).partType == "C")):
+            return False, "Another C is too close"
         # add the part
-        self.partsTypePlace += 1
-        self.lastPartPos = (posX, posX)
+        self.lastPartPos = (posX, posY)
         removedPart = self.world.addPart(part)
-        # if we are adding an A part and there was a part then give energy based on the part
-        if (removedPart != None and part.partType == "A"):
-          self.energy += CellTypeEnergyCost.__dict__[removedPart.partType]
         # remove energy based on the part
         self.energy -= CellTypeEnergyCost.__dict__[part.partType]
         self.parts.append(part)
-        return True
-    return False
+        return True, ""
+      elif (self.world.getAlivePartAtPos(posX, posY).partType == "A"):
+          # act like the part was added but it gets eaten by the A part
+          self.world.getAlivePartAtPos(posX, posY).parent.energy += CellTypeEnergyCost.__dict__[part.partType]
+          # remove energy based on the part
+          self.energy -= CellTypeEnergyCost.__dict__[part.partType]
+          return True, "The new part was eaten by an A part"
+      else:
+        return False, "Something is in the way"
+    else:
+      return False, "Outside world bounds"
           
 
   def update(self):
@@ -203,43 +214,49 @@ class Cell:
       spawned = self.spawnNewCell(newCell)
 
     # check if cell should grow
-    elif (self.energy > self.genetics["PartEnergyRequired"]):
-      # make sure we dont go outside the list of parts
-      if (self.partsTypePlace >= self.genetics["PartListMax"]):
-        self.partsTypePlace = 0
+    else:
+      numTries = 0
+      self.partsTypePlace += 1
+      while (self.energy > self.genetics["PartEnergyRequired"]):
+        # make sure we dont go outside the list of parts
+        if (self.partsTypePlace >= self.genetics["PartListMax"]):
+          self.partsTypePlace = 0
 
-      # choose next part type
-      partType = self.genetics["PartTypeList"][self.partsTypePlace]			
+        # choose next part type
+        partType = self.genetics["PartTypeList"][self.partsTypePlace]			
 
-      # get the next pos
-      newPosX = self.lastPartPos[0]
-      newPosY = self.lastPartPos[1]
-      if(self.genetics["GrowthDirection"][self.partsTypePlace] == "U"):
-        newPosY -= 1
-      elif(self.genetics["GrowthDirection"][self.partsTypePlace] == "D"):
-        newPosY += 1
-      elif(self.genetics["GrowthDirection"][self.partsTypePlace] == "L"):
-        newPosX -= 1
-      elif(self.genetics["GrowthDirection"][self.partsTypePlace] == "R"):
-        newPosX += 1
+        # get the next pos
+        newPosX = self.lastPartPos[0]
+        newPosY = self.lastPartPos[1]
+        if(self.genetics["GrowthDirection"][self.partsTypePlace] == "U"):
+          newPosY -= 1
+        elif(self.genetics["GrowthDirection"][self.partsTypePlace] == "D"):
+          newPosY += 1
+        elif(self.genetics["GrowthDirection"][self.partsTypePlace] == "L"):
+          newPosX -= 1
+        elif(self.genetics["GrowthDirection"][self.partsTypePlace] == "R"):
+          newPosX += 1
 
-      newPart = CellPart(newPosX, newPosY, partType, self)
-      addedPart = self.spawnNewPart(newPart)
+        newPart = CellPart(newPosX, newPosY, partType, self)
+        addedPart, failReason = self.spawnNewPart(newPart)
+        if (addedPart or failReason != "Another C is too close" or numTries > 10): # try to spawn up to 10 new parts
+          break
+        self.partsTypePlace += 1
+        numTries += 1
+        
+      
 
     # check if cell should move
     if (self.isSingleCell()): # it can move if its a single cell
       posX = self.getParts()[0].getPos()[0]
       posY = self.getParts()[0].getPos()[1]
-      self.getParts()[0].setPos(posX + random.randint(-1, 1), posY + random.randint(-1, 1))
-      # if its outside the world, kill it
-      if (self.getParts()[0].posX < 1 or self.getParts()[0].posY < 1 or self.getParts()[0].posX > self.world.width or self.getParts()[0].posY > self.world.height):
-        self.kill()
-      self.energy -= 1
+      if (posX > 1 and posX < self.world.width and posY > 1 and posY < self.world.height):
+        self.getParts()[0].setPos(posX + random.randint(-1, 1), posY + random.randint(-1, 1))
+        self.energy -= 1
     
     # check if cell is should be dead
     if (len(self.parts) == 0):
       self.kill()
-    self.energy -= len(self.parts)
     if (self.energy <= 0):
       self.kill()
     
