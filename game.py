@@ -2,6 +2,7 @@ import pygame
 from world import World
 from cell import Cell
 import random
+from pygame._sdl2 import Window
 
 def events():
   # make the game quit when control and q are pressed
@@ -20,14 +21,32 @@ class Game:
   def __init__(self):
     pygame.init()
     pygame.display.set_caption("Game of Life")
-    # make the screen fullscreen
-    self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
-    # make the screen 800x600
-    #self.screen = pygame.display.set_mode((800, 600))
     
-    # get the screen dimentions
-    self.screen_width = self.screen.get_width()
-    self.screen_height = self.screen.get_height()
+    monitor = "LEFT" # LEFT MIDDLE RIGHT
+    COVER_TASKBAR = False
+    
+    buffer = 0
+    if not COVER_TASKBAR:
+      buffer += 40
+    if monitor == "MIDDLE" or monitor == "RIGHT":
+      self.screen_width = pygame.display.Info().current_w
+      self.screen_height = pygame.display.Info().current_h-buffer
+      self.screen = pygame.display.set_mode((self.screen_width, self.screen_height), pygame.NOFRAME)
+      pgwindow = Window.from_display_module() # call this after set_mode
+
+    if monitor == "RIGHT":
+      pgwindow.position = (1920,0)
+
+    if monitor == "MIDDLE":
+      pgwindow.position = (0,0)
+
+    if monitor == "LEFT":
+      self.screen_width = pygame.display.Info().current_h
+      self.screen_height = pygame.display.Info().current_w-buffer
+      self.screen = pygame.display.set_mode((self.screen_width, self.screen_height), pygame.NOFRAME)
+      pgwindow = Window.from_display_module() #call this after set_mode
+      pgwindow.position = (-1080,-1*(1920-1080) + 104)
+    
     print("Screen width:", self.screen_width, "Screen height:", self.screen_height)
 
     self.clock = pygame.time.Clock()
@@ -37,9 +56,19 @@ class Game:
 
   def run(self):
     running = True
+    self.currentTickRate = 5
     while running:
-      # make it 60 fps
-      self.clock.tick(5)
+      # fps change on pressing the up and down arrow keys
+      if pygame.key.get_pressed()[pygame.K_UP]:
+        self.currentTickRate += 1
+        print("Tickrate:", self.currentTickRate)
+      if pygame.key.get_pressed()[pygame.K_DOWN]:
+        self.currentTickRate -= 1
+        print("Tickrate:", self.currentTickRate)
+      if self.currentTickRate < 1:
+        self.currentTickRate = 1
+        print("Tickrate:", self.currentTickRate)
+      self.clock.tick(self.currentTickRate)
 
       Game.turn(self.world)
 
@@ -67,18 +96,21 @@ class Game:
 
 
   def drawAllCells(self):
+    PRINT_STUFF = False
     totalParts = 0
     totalEnergy = 0
     for cell in self.world.cells:
       self.drawCell(cell)
       totalParts += len(cell.parts)
       totalEnergy += cell.energy
-    print()
-    print("Cells:", len(self.world.cells))
-    if len(self.world.cells) != 0:
-      print("Cell parts:", totalParts, "Average of", totalParts/len(self.world.cells), "parts per cell")
-      print("Cell parts take up ", round(totalParts/(self.world.width*self.world.height)*100,2), "% of the", self.world.width*self.world.height, "blocks")
-      print("Average of", totalEnergy/len(self.world.cells), "energy per cell")
+    
+    if PRINT_STUFF:
+      print()
+      print("Cells:", len(self.world.cells))
+      if len(self.world.cells) != 0:
+        print("Cell parts:", totalParts, "Average of", round(totalParts/len(self.world.cells),2), "parts per cell")
+        print("Cell parts take up ", str(round(totalParts/(self.world.width*self.world.height)*100,2)) + "% of the", self.world.width*self.world.height, "blocks")
+        print("Average of", round(totalEnergy/len(self.world.cells),2), "energy per cell")
 
 
   def drawCell(self, cell):
