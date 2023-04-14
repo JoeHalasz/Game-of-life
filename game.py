@@ -58,6 +58,10 @@ class Game:
     running = True
     self.currentTickRate = 5
     while running:
+      # reset world when R is pressed
+      if pygame.key.get_pressed()[pygame.K_r]:
+        self.setupWorld()
+      
       # fps change on pressing the up and down arrow keys
       if pygame.key.get_pressed()[pygame.K_UP]:
         self.currentTickRate += 1
@@ -123,10 +127,9 @@ class Game:
 
 
   def drawBackground(self):
-    # make the background light grey
-    self.screen.fill((200, 200, 200))
+    self.screen.fill((50, 50, 50)) # background
     # draw a grid using screen width and height
     for x in range(self.blockSize, self.screen_width, self.blockSize):
-      pygame.draw.line(self.screen, (0, 0, 0), (x, self.blockSize), (x, self.screen_height-self.blockSize))
+      pygame.draw.line(self.screen, (100, 100, 100), (x, self.blockSize), (x, self.screen_height-self.blockSize))
       for y in range(self.blockSize, self.screen_height, self.blockSize):
-        pygame.draw.line(self.screen, (0, 0, 0), (self.blockSize, y), (self.screen_width-self.blockSize, y))
+        pygame.draw.line(self.screen, (100, 100, 100), (self.blockSize, y), (self.screen_width-self.blockSize, y))
