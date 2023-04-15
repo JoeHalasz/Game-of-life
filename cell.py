@@ -1,77 +1,14 @@
-
-
 import random
+from collections import deque
+from cellPart import *
 
-
-# enum of the cell types
-class CellTypeNames:
-  C = "C" # chloroplast
-  B = "B" # body or connection
-  A = "A" # attack
-
-cellNameChoices = [CellTypeNames.C, CellTypeNames.B,CellTypeNames.C, CellTypeNames.B,CellTypeNames.C, CellTypeNames.B, CellTypeNames.A]
-
-class CellTypeEnergyCost:
-  C = 5
-  B = 2
-  A = 5
-
-class CellTypeColor:
-  C = (0, 255, 0)
-  B = (0, 0, 255)
-  A = (255, 0, 0)
-
-class CellPart:
-  def __init__(self, posX, posY, partType, parentCell):
-    self.posX = posX
-    self.posY = posY
-    self.alive = True
-    self.numTurnsAlive = 0
-    self.parent = parentCell
-    self.partType = partType
-    self.cellColor = CellTypeColor.__dict__[partType]
-
-  def getPos(self):
-    return self.posX, self.posY
-
-  def setPos(self, posX, posY):
-    self.posX = posX
-    self.posY = posY
-
-  def kill(self):
-    self.alive = False
-    if (self in self.parent.parts):
-      self.parent.parts.remove(self)
-    
-    self.parent.checkDead()
-    
-    try: # this will fail for parts that are off the grid
-      if (self.parent.world.parts[self.posX][self.posY] == self):
-        self.parent.world.parts[self.posX][self.posY] = None
-    except:
-      pass
-
-  def update(self):
-    if (self.partType == "C"):
-      self.parent.energy += 5
-    elif (self.partType == "B"):
-      self.parent.energy -= .2
-    elif (self.partType == "A"):
-      self.parent.energy -= 2
-      
-    try:
-      if (self.parent.world.parts[self.posX][self.posY] != self):
-        self.kill()
-    except:
-      self.kill()
-      
-    self.numTurnsAlive += 1
-    if (self.numTurnsAlive >= self.parent.genetics["cellPartLifeSpan"]):
-      self.kill()
 
 class Cell:
   def __init__(self, posX, posY, startingpartType, world, generation=0, oldGenetics=None):
+    self.id = world.getNextCellId()
     self.parts = []
+    for _ in cellNameChoices:
+      self.parts.append(deque([]))
     self.alive = True
     self.energy = 10
     self.numTurnsAlive = 0
@@ -81,10 +18,12 @@ class Cell:
     self.setupGenetics(oldGenetics)
 
     # spawn part has to happen last
-    self.spawnNewPart(CellPart(posX, posY, startingpartType, self), True)
-
+    spawnedPart = self.spawnNewPart(CellPart(posX, posY, startingpartType, self))
+    if not spawnedPart:
+      self.kill()
 
   def setupGenetics(self, oldGenetics):
+    random.seed(self.id)
     self.genetics = {}
     if (oldGenetics == None): # if this the first generation
       self.partsTypePlace = 0
@@ -99,16 +38,16 @@ class Cell:
       self.genetics["GrowthDirection"].append(random.choice(["U", "D", "L", "R"]))
       for i in range(1, self.genetics["PartListMax"]):
         if (self.genetics["PartTypeList"][i-1] == "B"): # make sure that new parts are connected to B parts
-          self.genetics["PartTypeList"].append(random.choice(cellNameChoices))
+          self.genetics["PartTypeList"].append(random.choice(cellNameChoicesWeighted))
         else:
           self.genetics["PartTypeList"].append("B")
         self.genetics["GrowthDirection"].append(random.choice(["U", "D", "L", "R"]))
     else: # if this is not the first generation
       self.genetics = oldGenetics
       self.partsTypePlace = 0
-      # for all the genetics, there is a 1% chance that it will mutate
+      # for all the genetics, there is a .1% chance that it will mutate
       for key in self.genetics:
-        if (random.randint(0, 100) == 0):
+        if (random.randint(0, 1000) == 0):
           if (key == "PartEnergyRequired" or key == "PartListMax"or key == "cellPartLifeSpan"):
             self.genetics[key] += random.choice([-2, -1, 1, 2])
           if (self.genetics["PartListMax"] <= 0):
@@ -124,17 +63,17 @@ class Cell:
                 if (i < len(oldGenetics["PartTypeList"])):
                   self.genetics["PartTypeList"].append(oldGenetics["PartTypeList"][i])
                 else:
-                  self.genetics["PartTypeList"].append(random.choice(cellNameChoices))
+                  self.genetics["PartTypeList"].append(random.choice(cellNameChoicesWeighted))
                 if (i < len(oldGenetics["GrowthDirection"])):
                   self.genetics["GrowthDirection"].append(oldGenetics["GrowthDirection"][i])
                 else:
                   self.genetics["GrowthDirection"].append(random.choice(["U", "D", "L", "R"]))
 
       for i in range(self.genetics["PartListMax"]):
-        if (random.randint(0, 100) == 0):
-          self.genetics["PartTypeList"][i] = random.choice(cellNameChoices)
+        if (random.randint(0, 1000) == 0):
+          self.genetics["PartTypeList"][i] = random.choice(cellNameChoicesWeighted)
       for i in range(0, self.genetics["PartListMax"]):
-        if (random.randint(0, 100) == 0):
+        if (random.randint(0, 1000) == 0):
           self.genetics["GrowthDirection"][i] = random.choice(["U", "D", "L", "R"])
 
   def getParts(self):
@@ -142,45 +81,57 @@ class Cell:
 
   def kill(self):
     self.alive = False
-    for parts in self.parts:
-      parts.kill()
+    for partsList in self.parts:
+      for part in partsList:
+        part.kill()
     self.world.removeCell(self)
     
   def checkDead(self):
-    if (len(self.parts) == 0):
+    if (self.getTotalParts() == 0):
       self.kill()
   
   def isSingleCell(self):
-    return len(self.parts) == 1
+    return self.getTotalParts() == 1
 
   # return false if it cant spawn one there
   def spawnNewCell(self, cell):
-    spawnedPart = self.spawnNewPart(cell.parts[0])
+    cellPart = None
+    for i in range(len(cell.parts)): 
+      if (len(cell.parts[i]) != 0):
+        cellPart = cell.parts[i][0]
+        break
+    
+    if (cellPart == None):
+      return False
+    spawnedPart = self.spawnNewPart(cellPart)
     if (spawnedPart):
       # add the new cell to the list of cells
       self.world.addCell(cell)
       return True
     return False
 
-  def spawnNewPart(self, part, force=False):
+  def spawnNewPart(self, part):
     posX = part.posX
     posY = part.posY
     # check if a part can be added there
-    if (force or (posX > 1 and posX < self.world.width and posY > 1 and posY < self.world.height)):
-      if force or (self.world.getAlivePartAtPos(posX, posY) == None or self.world.getAlivePartAtPos(posX, posY) == part):
-        if (not force) and (part.partType == "C"):
+    if (posX > 0 and posX < self.world.width-1 and posY > 0 and posY < self.world.height-1):
+      if self.world.getAlivePartAtPos(posX, posY) == None or self.world.getAlivePartAtPos(posX, posY) == part:
+        if part.partType == "C":
           # if the any of the 4 squares around this are a C then return false
-          if ((self.world.getPartAtPos(posX+1, posY) != None and self.world.getPartAtPos(posX+1, posY).partType == "C") 
+          if  ((self.world.getPartAtPos(posX+1, posY) != None and self.world.getPartAtPos(posX+1, posY).partType == "C") 
             or (self.world.getPartAtPos(posX-1, posY) != None and self.world.getPartAtPos(posX-1, posY).partType == "C")
             or (self.world.getPartAtPos(posX, posY+1) != None and self.world.getPartAtPos(posX, posY+1).partType == "C")
             or (self.world.getPartAtPos(posX, posY-1) != None and self.world.getPartAtPos(posX, posY-1).partType == "C")):
             return False, "Another C is too close"
-        # add the part
+        # add the part if there is no part there
+        if (self.world.getPartAtPos(posX, posY) != None and self.world.getPartAtPos(posX, posY).partType == "C"):
+          return False, "Another part is on that position"
         self.lastPartPos = (posX, posY)
         removedPart = self.world.addPart(part)
         # remove energy based on the part
         self.energy -= CellTypeEnergyCost.__dict__[part.partType]
-        self.parts.append(part)
+        self.parts[CellTypeData.__dict__[part.partType]].append(part)
+        part.whenToDie = self.numTurnsAlive + self.genetics["cellPartLifeSpan"]
         return True, ""
       elif (self.world.getAlivePartAtPos(posX, posY).partType == "A"):
           # act like the part was added but it gets eaten by the A part
@@ -193,20 +144,30 @@ class Cell:
     else:
       return False, "Outside world bounds"
           
-
+  def getTotalParts(self):
+    total = 0
+    for partList in self.parts:
+      total += len(partList)
+    return total
+  
   def update(self):
-    for part in self.parts:
-      part.update()
-      try:
-        if not part.alive:
-          self.parts.remove(part)
-      except:
-        pass
-      
+    for i in range(len(self.parts)):
+      partsList = self.parts[i]
+      self.energy += CellTypeEnergyGain[i] * len(partsList)
+      while len(partsList) > 0:
+        # check first part, if it should be dead then kill it, if it shouldnt then break
+        if partsList[0].whenToDie <= self.numTurnsAlive:
+          partsList[0].kill()
+          partsList.popleft()
+        else:
+          break
+    if self.getTotalParts() == 0:
+      self.kill()
+        
     # check if cell should bud
     if (random.randint(0, 1) == 0 and self.energy > self.genetics["MaxStoredEnergy"]/2 and 
         self.energy > self.genetics["PartEnergyRequired"] and
-        len(self.parts) >= self.genetics["PartListMax"]/2):
+        self.getTotalParts() >= self.genetics["PartListMax"]/2):
       spawnDirection = random.choice([(0,-1), (0,1), (-1,0), (1,0)])
       newPosX = self.lastPartPos[0] + spawnDirection[0]
       newPosY = self.lastPartPos[1] + spawnDirection[1]
@@ -243,19 +204,9 @@ class Cell:
           break
         self.partsTypePlace += 1
         numTries += 1
-        
-      
-
-    # check if cell should move
-    if (self.isSingleCell()): # it can move if its a single cell
-      posX = self.getParts()[0].getPos()[0]
-      posY = self.getParts()[0].getPos()[1]
-      if (posX > 1 and posX < self.world.width and posY > 1 and posY < self.world.height):
-        self.getParts()[0].setPos(posX + random.randint(-1, 1), posY + random.randint(-1, 1))
-        self.energy -= 1
     
     # check if cell is should be dead
-    if (len(self.parts) == 0):
+    if (self.getTotalParts == 0):
       self.kill()
     if (self.energy <= 0):
       self.kill()

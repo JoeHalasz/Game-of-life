@@ -1,3 +1,4 @@
+import time
 import pygame
 from world import World
 from cell import Cell
@@ -55,12 +56,38 @@ class Game:
 
 
   def run(self):
+    self.PRINT_STUFF = False
+    self.PRINT_STUFF_FPS = True
     running = True
     self.currentTickRate = 5
+    lastTime = time.time()
+    nbFrames = 0
+    lastTimeRendered = time.time()
     while running:
+      
+      currentTime = time.time()
+      
+      self.printThisTurn = False
+      
+      if (currentTime - lastTime) < (1 / self.currentTickRate):
+        if (1 / self.currentTickRate) - (currentTime - lastTime) > (1 / self.currentTickRate)/2:
+          time.sleep((1 / self.currentTickRate)/2)
+        elif (1 / self.currentTickRate) - (currentTime - lastTime) > .01:
+          time.sleep(.01)
+        continue
+      
+      if self.PRINT_STUFF_FPS:
+        nbFrames += 1
+        if currentTime - lastTimeRendered >= 1.0:
+          print(str(round(currentTime - lastTime, 4)) +"ms/frame", nbFrames,"fps")
+          self.printThisTurn = True
+          nbFrames = 0
+          lastTimeRendered += 1.0
+      lastTime = currentTime
       # reset world when R is pressed
       if pygame.key.get_pressed()[pygame.K_r]:
         self.setupWorld()
+        print("Resetting world")
       
       # fps change on pressing the up and down arrow keys
       if pygame.key.get_pressed()[pygame.K_UP]:
@@ -72,8 +99,7 @@ class Game:
       if self.currentTickRate < 1:
         self.currentTickRate = 1
         print("Tickrate:", self.currentTickRate)
-      self.clock.tick(self.currentTickRate)
-
+        
       Game.turn(self.world)
 
       self.drawBackground()
@@ -100,15 +126,14 @@ class Game:
 
 
   def drawAllCells(self):
-    PRINT_STUFF = False
     totalParts = 0
     totalEnergy = 0
     for cell in self.world.cells:
       self.drawCell(cell)
-      totalParts += len(cell.parts)
+      totalParts += cell.getTotalParts()
       totalEnergy += cell.energy
     
-    if PRINT_STUFF:
+    if self.PRINT_STUFF and self.printThisTurn:
       print()
       print("Cells:", len(self.world.cells))
       if len(self.world.cells) != 0:
@@ -118,18 +143,18 @@ class Game:
 
 
   def drawCell(self, cell):
-    for part in cell.parts:
-      if (part.posX < 0 or part.posX >= self.world.width-1 or part.posY < 0 or part.posY >= self.world.height-1):
-        part.kill()
-      else:
-        color = part.cellColor
-        pygame.draw.rect(self.screen, color, (self.blockSize*part.posX + 1, self.blockSize*part.posY + 1, self.blockSize - 1, self.blockSize - 1))
+    for partsList in cell.parts:
+      for part in partsList:
+        pygame.draw.rect(self.screen, part.cellColor, (self.blockSize*part.posX + 1, self.blockSize*part.posY + 1, self.blockSize - 1, self.blockSize - 1))
 
 
   def drawBackground(self):
+    i = 0
     self.screen.fill((50, 50, 50)) # background
     # draw a grid using screen width and height
     for x in range(self.blockSize, self.screen_width, self.blockSize):
       pygame.draw.line(self.screen, (100, 100, 100), (x, self.blockSize), (x, self.screen_height-self.blockSize))
-      for y in range(self.blockSize, self.screen_height, self.blockSize):
-        pygame.draw.line(self.screen, (100, 100, 100), (self.blockSize, y), (self.screen_width-self.blockSize, y))
+      i += 1
+    for y in range(self.blockSize, self.screen_height, self.blockSize):
+      pygame.draw.line(self.screen, (100, 100, 100), (self.blockSize, y), (self.screen_width-self.blockSize, y))
+      i += 1
