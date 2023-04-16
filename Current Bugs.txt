@@ -1,0 +1,4 @@
+
+Pygame bug where mouse movement will sometimes crash the program
+
+Randomness seems broken between budding and changing genetics
