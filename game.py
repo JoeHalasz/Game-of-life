@@ -23,8 +23,8 @@ class Game:
     pygame.init()
     pygame.display.set_caption("Game of Life")
     
-    monitor = "LEFT" # LEFT MIDDLE RIGHT
-    COVER_TASKBAR = False
+    monitor = "RIGHT" # LEFT MIDDLE RIGHT
+    COVER_TASKBAR = True
     
     buffer = 0
     if not COVER_TASKBAR:
@@ -113,6 +113,7 @@ class Game:
 
 
   def setupWorld(self):
+    random.seed(time.time())
     # create world
     self.blockSize = 10
     self.world = World(self.screen_width/self.blockSize, self.screen_height/self.blockSize)

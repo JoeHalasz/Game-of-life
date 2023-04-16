@@ -1,5 +1,6 @@
 import random
 from collections import deque
+import time
 from cellPart import *
 
 
@@ -23,7 +24,7 @@ class Cell:
       self.kill()
 
   def setupGenetics(self, oldGenetics):
-    random.seed(self.id)
+    random.seed(time.time())
     self.genetics = {}
     if (oldGenetics == None): # if this the first generation
       self.partsTypePlace = 0
